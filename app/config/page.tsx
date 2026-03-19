@@ -177,6 +177,7 @@ function OAuthAccountsTab() {
   const [accounts, setAccounts] = useState<SafeOAuthAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadAccounts()
@@ -184,9 +185,17 @@ function OAuthAccountsTab() {
 
   async function loadAccounts() {
     setLoading(true)
+    setLoadError('')
     try {
       const res = await fetch('/api/x/accounts')
-      setAccounts(await res.json())
+      const data = await res.json()
+      if (!res.ok) {
+        setLoadError(data.error ?? 'Failed to load accounts')
+      } else {
+        setAccounts(data)
+      }
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load accounts')
     } finally {
       setLoading(false)
     }
@@ -234,6 +243,8 @@ function OAuthAccountsTab() {
 
         {loading ? (
           <p className="text-sm text-slate-500 italic">Loading…</p>
+        ) : loadError ? (
+          <p className="text-sm text-red-400">Error loading accounts: {loadError}</p>
         ) : accounts.length === 0 ? (
           <p className="text-sm text-slate-500 italic">
             No accounts connected yet. Click &quot;Connect Account&quot; to authorize your first X account.

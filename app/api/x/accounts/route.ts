@@ -15,6 +15,12 @@ function safeAccount(a: OAuthAccount) {
 }
 
 export async function GET() {
-  const accounts = await getOAuthAccounts()
-  return NextResponse.json(accounts.map(safeAccount))
+  try {
+    const accounts = await getOAuthAccounts()
+    return NextResponse.json(accounts.map(safeAccount))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Failed to load OAuth accounts:', message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
