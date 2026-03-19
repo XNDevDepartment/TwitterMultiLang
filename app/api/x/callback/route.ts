@@ -101,7 +101,13 @@ export async function GET(req: NextRequest) {
     created_at: Date.now(),
   }
 
-  await upsertOAuthAccount(account)
+  try {
+    await upsertOAuthAccount(account)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Failed to save account:', message)
+    return NextResponse.redirect(`${configUrl}?oauth_error=${encodeURIComponent('save_failed: ' + message)}`)
+  }
 
   return NextResponse.redirect(
     `${configUrl}?tab=oauth&connected=${encodeURIComponent(username)}`
