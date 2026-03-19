@@ -18,7 +18,7 @@ export type TweetType = 'quote' | 'reply'
 
 export interface TranslationEntry {
   languageCode: string
-  text: string
+  texts: string[]       // one entry per thread block
   enabled: boolean
   status: PublishStatus
   errorMessage?: string

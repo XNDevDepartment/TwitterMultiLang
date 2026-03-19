@@ -1,4 +1,5 @@
 import { TwitterApi } from 'twitter-api-v2'
+import type { SendTweetV2Params } from 'twitter-api-v2'
 import type { AccountMapping, TwitterApiConfig, FetchedTweet, PostTweetParams, OAuthAccount } from '@/types'
 
 const X_TOKEN_URL = 'https://api.twitter.com/2/oauth2/token'
@@ -86,21 +87,22 @@ export async function postTweet(
   client: TwitterApi,
   params: PostTweetParams
 ): Promise<string> {
-  const payload: Record<string, unknown> = { text: params.text }
-
-  if (params.quoteId) {
-    payload.quote_tweet_id = params.quoteId
-  }
+  const extra: Partial<SendTweetV2Params> = {}
 
   if (params.replyToId) {
-    payload.reply = { in_reply_to_tweet_id: params.replyToId }
+    extra.reply = { in_reply_to_tweet_id: params.replyToId }
   }
-
   if (params.mediaIds && params.mediaIds.length > 0) {
-    payload.media = { media_ids: params.mediaIds }
+    extra.media = { media_ids: params.mediaIds }
   }
 
-  const response = await client.v2.tweet(payload as Parameters<typeof client.v2.tweet>[0])
+  if (params.quoteId) {
+    // Use the library's dedicated quote method to ensure correct API format
+    const response = await client.v2.quote(params.text, params.quoteId, extra)
+    return response.data.id
+  }
+
+  const response = await client.v2.tweet(params.text, extra)
   return response.data.id
 }
 

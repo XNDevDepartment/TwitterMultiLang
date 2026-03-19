@@ -4,20 +4,13 @@ import { getTwitterClient, postTweet, uploadImages, getOAuth2Client } from '@/li
 
 export async function POST(req: NextRequest) {
   try {
-    const { languageCode, text, images, tweetType, referencedTweetId } = await req.json()
+    const { languageCode, texts, images, tweetType, referencedTweetId } = await req.json()
 
-    if (!languageCode || !text) {
-      return NextResponse.json({ error: 'languageCode and text are required' }, { status: 400 })
+    if (!languageCode || !texts || !Array.isArray(texts) || texts.length === 0) {
+      return NextResponse.json({ error: 'languageCode and texts are required' }, { status: 400 })
     }
 
     const hasImages = images && images.length > 0
-
-    // Build tweet payload params
-    const params = {
-      text,
-      ...(tweetType === 'quote' && referencedTweetId ? { quoteId: referencedTweetId } : {}),
-      ...(tweetType === 'reply' && referencedTweetId ? { replyToId: referencedTweetId } : {}),
-    }
 
     const apiConfig = getTwitterApiConfig()
     const legacyAccounts = apiConfig.apiKey ? await getAccounts() : []
@@ -27,9 +20,15 @@ export async function POST(req: NextRequest) {
     if (hasImages && legacyAccount) {
       const client = getTwitterClient(legacyAccount, apiConfig)
       const mediaIds = await uploadImages(client, images)
-      const tweetId = await postTweet(client, { ...params, mediaIds })
-      const tweetUrl = `https://x.com/${legacyAccount.handle.replace('@', '')}/status/${tweetId}`
-      return NextResponse.json({ tweetId, tweetUrl })
+      const tweetIds = await postThread(
+        (params) => postTweet(client, params),
+        texts,
+        mediaIds,
+        tweetType,
+        referencedTweetId
+      )
+      const tweetUrl = `https://x.com/${legacyAccount.handle.replace('@', '')}/status/${tweetIds[0]}`
+      return NextResponse.json({ tweetId: tweetIds[0], tweetUrl })
     }
 
     // ── Try OAuth 2.0 account ─────────────────────────────────────────────────
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
     if (oauthAccount) {
       const { client, account: refreshedAccount } = await getOAuth2Client(oauthAccount)
 
-      // Persist refreshed tokens if they changed
       if (refreshedAccount.access_token !== oauthAccount.access_token) {
         await updateOAuthAccount(oauthAccount.id, {
           access_token: refreshedAccount.access_token,
@@ -50,12 +48,18 @@ export async function POST(req: NextRequest) {
         ? 'Images were skipped — add a Legacy account for this language to include images'
         : undefined
 
-      const tweetId = await postTweet(client, params)
-      const tweetUrl = `https://x.com/${refreshedAccount.username}/status/${tweetId}`
-      return NextResponse.json({ tweetId, tweetUrl, warning })
+      const tweetIds = await postThread(
+        (params) => postTweet(client, params),
+        texts,
+        undefined,
+        tweetType,
+        referencedTweetId
+      )
+      const tweetUrl = `https://x.com/${refreshedAccount.username}/status/${tweetIds[0]}`
+      return NextResponse.json({ tweetId: tweetIds[0], tweetUrl, warning })
     }
 
-    // ── Fall back to Legacy account (text-only) ───────────────────────────────
+    // ── Fall back to Legacy account ───────────────────────────────────────────
     if (!legacyAccount) {
       return NextResponse.json(
         { error: `No account configured for language: ${languageCode}` },
@@ -68,9 +72,15 @@ export async function POST(req: NextRequest) {
     if (hasImages) {
       mediaIds = await uploadImages(client, images)
     }
-    const tweetId = await postTweet(client, { ...params, mediaIds })
-    const tweetUrl = `https://x.com/${legacyAccount.handle.replace('@', '')}/status/${tweetId}`
-    return NextResponse.json({ tweetId, tweetUrl })
+    const tweetIds = await postThread(
+      (params) => postTweet(client, params),
+      texts,
+      mediaIds,
+      tweetType,
+      referencedTweetId
+    )
+    const tweetUrl = `https://x.com/${legacyAccount.handle.replace('@', '')}/status/${tweetIds[0]}`
+    return NextResponse.json({ tweetId: tweetIds[0], tweetUrl })
 
   } catch (err: unknown) {
     const twitterErr = err as { code?: number; data?: { detail?: string; title?: string } }
@@ -81,4 +91,31 @@ export async function POST(req: NextRequest) {
     const code = twitterErr?.code ?? 500
     return NextResponse.json({ error: message, code }, { status: 500 })
   }
+}
+
+// Posts a sequence of tweets as a thread. Returns IDs in order.
+// Images attach to the first tweet only.
+async function postThread(
+  poster: (params: { text: string; quoteId?: string; replyToId?: string; mediaIds?: string[] }) => Promise<string>,
+  texts: string[],
+  mediaIds: string[] | undefined,
+  tweetType: string,
+  referencedTweetId: string | undefined
+): Promise<string[]> {
+  const ids: string[] = []
+
+  for (let i = 0; i < texts.length; i++) {
+    const isFirst = i === 0
+    const params: { text: string; quoteId?: string; replyToId?: string; mediaIds?: string[] } = {
+      text: texts[i],
+      ...(isFirst && mediaIds ? { mediaIds } : {}),
+      ...(isFirst && tweetType === 'quote' && referencedTweetId ? { quoteId: referencedTweetId } : {}),
+      ...(isFirst && tweetType === 'reply' && referencedTweetId ? { replyToId: referencedTweetId } : {}),
+      ...(!isFirst ? { replyToId: ids[i - 1] } : {}),
+    }
+    const id = await poster(params)
+    ids.push(id)
+  }
+
+  return ids
 }
