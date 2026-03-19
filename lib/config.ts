@@ -88,7 +88,17 @@ export async function deleteAccount(id: string): Promise<AccountMapping[]> {
 
 // ─── OAuth 2.0 Accounts ───────────────────────────────────────────────────────
 
+function isSupabaseEnabled(): boolean {
+  return !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY
+}
+
 export async function getOAuthAccounts(): Promise<OAuthAccount[]> {
+  if (isSupabaseEnabled()) {
+    const { supabase } = await import('./supabase')
+    const { data, error } = await supabase.from('oauth_accounts').select('*')
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(rowToAccount)
+  }
   if (isKVEnabled()) {
     const { kv } = await import('@vercel/kv')
     return (await kv.get<OAuthAccount[]>(KV_OAUTH_ACCOUNTS_KEY)) ?? []
@@ -98,8 +108,15 @@ export async function getOAuthAccounts(): Promise<OAuthAccount[]> {
 }
 
 export async function upsertOAuthAccount(account: OAuthAccount): Promise<OAuthAccount[]> {
+  if (isSupabaseEnabled()) {
+    const { supabase } = await import('./supabase')
+    const { error } = await supabase
+      .from('oauth_accounts')
+      .upsert(accountToRow(account), { onConflict: 'x_user_id' })
+    if (error) throw new Error(error.message)
+    return getOAuthAccounts()
+  }
   const accounts = await getOAuthAccounts()
-  // Deduplicate by x_user_id (reconnecting same account updates tokens)
   const idx = accounts.findIndex((a) => a.x_user_id === account.x_user_id)
   if (idx >= 0) {
     accounts[idx] = { ...accounts[idx], ...account }
@@ -114,6 +131,15 @@ export async function updateOAuthAccount(
   id: string,
   patch: Partial<OAuthAccount>
 ): Promise<OAuthAccount[]> {
+  if (isSupabaseEnabled()) {
+    const { supabase } = await import('./supabase')
+    const { error } = await supabase
+      .from('oauth_accounts')
+      .update(accountToRow(patch as OAuthAccount))
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+    return getOAuthAccounts()
+  }
   const accounts = await getOAuthAccounts()
   const idx = accounts.findIndex((a) => a.id === id)
   if (idx >= 0) accounts[idx] = { ...accounts[idx], ...patch }
@@ -122,6 +148,12 @@ export async function updateOAuthAccount(
 }
 
 export async function deleteOAuthAccount(id: string): Promise<OAuthAccount[]> {
+  if (isSupabaseEnabled()) {
+    const { supabase } = await import('./supabase')
+    const { error } = await supabase.from('oauth_accounts').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    return getOAuthAccounts()
+  }
   const accounts = (await getOAuthAccounts()).filter((a) => a.id !== id)
   await saveOAuthAccounts(accounts)
   return accounts
@@ -130,6 +162,16 @@ export async function deleteOAuthAccount(id: string): Promise<OAuthAccount[]> {
 export async function getOAuthAccountForLanguage(
   languageCode: string
 ): Promise<OAuthAccount | undefined> {
+  if (isSupabaseEnabled()) {
+    const { supabase } = await import('./supabase')
+    const { data, error } = await supabase
+      .from('oauth_accounts')
+      .select('*')
+      .eq('language_code', languageCode)
+      .single()
+    if (error || !data) return undefined
+    return rowToAccount(data)
+  }
   const accounts = await getOAuthAccounts()
   return accounts.find((a) => a.languageCode === languageCode)
 }
@@ -141,6 +183,33 @@ async function saveOAuthAccounts(accounts: OAuthAccount[]): Promise<void> {
   } else {
     ensureConfigDir()
     fs.writeFileSync(OAUTH_ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
+  }
+}
+
+// Map between camelCase OAuthAccount and snake_case DB rows
+function accountToRow(account: Partial<OAuthAccount>): Record<string, unknown> {
+  const row: Record<string, unknown> = {}
+  if (account.id !== undefined) row.id = account.id
+  if (account.x_user_id !== undefined) row.x_user_id = account.x_user_id
+  if (account.username !== undefined) row.username = account.username
+  if (account.languageCode !== undefined) row.language_code = account.languageCode
+  if (account.access_token !== undefined) row.access_token = account.access_token
+  if (account.refresh_token !== undefined) row.refresh_token = account.refresh_token
+  if (account.expires_at !== undefined) row.expires_at = account.expires_at
+  if (account.created_at !== undefined) row.created_at = account.created_at
+  return row
+}
+
+function rowToAccount(row: Record<string, unknown>): OAuthAccount {
+  return {
+    id: row.id as string,
+    x_user_id: row.x_user_id as string,
+    username: row.username as string,
+    languageCode: (row.language_code as string | null) ?? null,
+    access_token: row.access_token as string,
+    refresh_token: row.refresh_token as string,
+    expires_at: row.expires_at as number,
+    created_at: row.created_at as number,
   }
 }
 
