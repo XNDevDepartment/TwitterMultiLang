@@ -135,7 +135,7 @@ export async function updateOAuthAccount(
     const { supabase } = await import('./supabase')
     const { error } = await supabase
       .from('oauth_accounts')
-      .update(accountToRow(patch as OAuthAccount))
+      .update(accountToRow(patch))
       .eq('id', id)
     if (error) throw new Error(error.message)
     return getOAuthAccounts()
@@ -187,7 +187,7 @@ async function saveOAuthAccounts(accounts: OAuthAccount[]): Promise<void> {
 }
 
 // Map between camelCase OAuthAccount and snake_case DB rows
-function accountToRow(account: Partial<OAuthAccount>): Record<string, unknown> {
+function accountToRow(account: Partial<OAuthAccount> | OAuthAccount): Record<string, unknown> {
   const row: Record<string, unknown> = {}
   if (account.id !== undefined) row.id = account.id
   if (account.x_user_id !== undefined) row.x_user_id = account.x_user_id

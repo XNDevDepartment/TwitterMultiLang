@@ -68,9 +68,9 @@ export default function ConfigPage() {
         ))}
       </div>
 
-      {tab === 'api' && <ApiConfigTab />}
-      {tab === 'oauth' && <OAuthAccountsTab />}
-      {tab === 'legacy' && <AccountsTab />}
+      <div className={tab === 'api' ? undefined : 'hidden'}><ApiConfigTab /></div>
+      <div className={tab === 'oauth' ? undefined : 'hidden'}><OAuthAccountsTab /></div>
+      <div className={tab === 'legacy' ? undefined : 'hidden'}><AccountsTab /></div>
     </div>
   )
 }
@@ -207,7 +207,13 @@ function OAuthAccountsTab() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ languageCode }),
     })
-    if (res.ok) setAccounts(await res.json())
+    const data = await res.json()
+    if (res.ok) {
+      setAccounts(data)
+    } else {
+      setMessage(`Failed to assign language: ${data.error ?? 'unknown error'}`)
+      await loadAccounts()
+    }
   }
 
   async function handleDisconnect(id: string, username: string) {

@@ -32,16 +32,17 @@ export async function POST(req: NextRequest) {
       }
 
       let mediaIds: string[] | undefined
+      let imageWarning: string | undefined
       if (images && images.length > 0) {
-        // Media upload requires OAuth 1.0a; skip silently for OAuth 2.0 accounts
-        // (Twitter v1 upload endpoint does not accept OAuth 2.0 user tokens)
+        // Media upload requires OAuth 1.0a; skip for OAuth 2.0 accounts
+        imageWarning = 'Images were skipped — image upload requires a Legacy account'
         console.warn('Image upload skipped: OAuth 2.0 accounts do not support media upload via v1 API')
       }
 
       const tweetPayload = { ...params, mediaIds }
       const tweetId = await postTweet(client, tweetPayload)
       const tweetUrl = `https://x.com/${refreshedAccount.username}/status/${tweetId}`
-      return NextResponse.json({ tweetId, tweetUrl })
+      return NextResponse.json({ tweetId, tweetUrl, warning: imageWarning })
     }
 
     // ── Fall back to OAuth 1.0a account ──────────────────────────────────────

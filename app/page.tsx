@@ -29,19 +29,37 @@ export default function ComposerPage() {
 
   const [configuredAccounts, setConfiguredAccounts] = useState<AccountMapping[]>([])
   const [oauthAccounts, setOauthAccounts] = useState<Omit<OAuthAccount, 'access_token' | 'refresh_token'>[]>([])
+  const [accountsLoaded, setAccountsLoaded] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  function loadAccounts() {
+    return Promise.all([
+      fetch('/api/config/accounts').then((r) => r.json()),
+      fetch('/api/x/accounts').then((r) => r.json()),
+    ]).then(([legacy, oauth]) => {
+      setConfiguredAccounts(Array.isArray(legacy) ? legacy : [])
+      setOauthAccounts(Array.isArray(oauth) ? oauth : [])
+    }).catch(() => {})
+  }
+
   useEffect(() => {
-    fetch('/api/config/accounts')
-      .then((r) => r.json())
-      .then((accounts: AccountMapping[]) => setConfiguredAccounts(accounts))
-      .catch(() => {})
-    fetch('/api/x/accounts')
-      .then((r) => r.json())
-      .then(setOauthAccounts)
-      .catch(() => {})
+    loadAccounts().finally(() => setAccountsLoaded(true))
   }, [])
+
+  // Re-evaluate enabled flags whenever accounts change (handles race condition
+  // where accounts load after translate was already clicked)
+  useEffect(() => {
+    if (translations.length === 0) return
+    setTranslations((prev) =>
+      prev.map((t) =>
+        t.status === 'idle'
+          ? { ...t, enabled: hasAccount(t.languageCode) }
+          : t
+      )
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oauthAccounts, configuredAccounts])
 
   function hasAccount(langCode: string) {
     return (
@@ -154,7 +172,9 @@ export default function ComposerPage() {
 
         setTranslations((prev) =>
           prev.map((t) =>
-            t.languageCode === entry.languageCode ? { ...t, status: 'success' } : t
+            t.languageCode === entry.languageCode
+              ? { ...t, status: 'success', errorMessage: data.warning }
+              : t
           )
         )
       } catch (err) {
@@ -174,6 +194,8 @@ export default function ComposerPage() {
 
   const langMeta = (code: string) => SUPPORTED_LANGUAGES.find((l) => l.code === code)
   const enabledCount = translations.filter((t) => t.enabled).length
+  const configuredCount =
+    oauthAccounts.filter((a) => a.languageCode).length + configuredAccounts.length
 
   return (
     <div className="space-y-4">
@@ -329,10 +351,10 @@ export default function ComposerPage() {
 
           <button
             onClick={handleTranslate}
-            disabled={!composedText.trim() || translating}
+            disabled={!composedText.trim() || translating || !accountsLoaded}
             className="btn-gradient w-full py-2 text-sm"
           >
-            {translating ? 'Translating...' : '→ Translate'}
+            {translating ? 'Translating...' : !accountsLoaded ? 'Loading accounts...' : '→ Translate'}
           </button>
           {translationError && <p className="text-red-400 text-xs">{translationError}</p>}
         </div>
@@ -341,21 +363,39 @@ export default function ComposerPage() {
         <div className="glass-card p-5 space-y-4 animate-slide-up">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-slate-200">Translations</h2>
-            {translations.length > 0 && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={handlePublishAll}
-                disabled={publishing || enabledCount === 0}
-                className="btn-gradient px-4 py-1.5 text-sm"
+                onClick={() => loadAccounts()}
+                className="text-slate-500 hover:text-slate-300 transition-colors text-sm"
+                title="Refresh accounts"
               >
-                {publishing ? 'Publishing...' : `Publish All (${enabledCount})`}
+                ↻
               </button>
-            )}
+              {translations.length > 0 && (
+                <button
+                  onClick={handlePublishAll}
+                  disabled={publishing || enabledCount === 0}
+                  className="btn-gradient px-4 py-1.5 text-sm"
+                >
+                  {publishing ? 'Publishing...' : `Publish All (${enabledCount})`}
+                </button>
+              )}
+            </div>
           </div>
 
           {translations.length === 0 ? (
-            <p className="text-sm text-slate-500 italic">
-              Compose your tweet and click &quot;Translate&quot; to see translations here.
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-slate-500 italic">
+                Compose your tweet and click &quot;Translate&quot; to see translations here.
+              </p>
+              {accountsLoaded && (
+                <p className="text-xs text-slate-600">
+                  {configuredCount === 0
+                    ? 'No accounts configured — go to Config to connect accounts.'
+                    : `${configuredCount} language${configuredCount === 1 ? '' : 's'} configured.`}
+                </p>
+              )}
+            </div>
           ) : (
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
               {translations.map((entry, i) => {
@@ -442,8 +482,11 @@ function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: 
     )
   if (status === 'success')
     return (
-      <span className="text-xs bg-emerald-400/15 border border-emerald-400/30 text-emerald-400 px-2 py-0.5 rounded-full">
-        ✓
+      <span
+        className="text-xs bg-emerald-400/15 border border-emerald-400/30 text-emerald-400 px-2 py-0.5 rounded-full cursor-help"
+        title={errorMessage ?? 'Published successfully'}
+      >
+        {errorMessage ? '✓ ⚠' : '✓'}
       </span>
     )
   if (status === 'error')
