@@ -20,18 +20,19 @@ export async function GET() {
   const verifier = generateCodeVerifier()
   const challenge = generateCodeChallenge(verifier)
 
+  // Embed verifier in state so it survives across serverless instances.
+  // Twitter reflects the state value back unchanged; we extract it in the callback.
+  const stateParam = `${state}.${verifier}`
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientId,
     redirect_uri: callbackUrl,
     scope: SCOPES,
-    state,
+    state: stateParam,
     code_challenge: challenge,
     code_challenge_method: 'S256',
   })
 
-  const response = NextResponse.redirect(`${X_AUTH_URL}?${params.toString()}`)
-  response.cookies.set('oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600 })
-  response.cookies.set('oauth_verifier', verifier, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600 })
-  return response
+  return NextResponse.redirect(`${X_AUTH_URL}?${params.toString()}`)
 }

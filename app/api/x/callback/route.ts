@@ -9,7 +9,7 @@ const X_USER_ME_URL = 'https://api.twitter.com/2/users/me'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state')
+  const stateParam = searchParams.get('state')
   const error = searchParams.get('error')
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
@@ -19,16 +19,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${configUrl}?oauth_error=${encodeURIComponent(error)}`)
   }
 
-  if (!code || !state) {
+  if (!code || !stateParam) {
     return NextResponse.redirect(`${configUrl}?oauth_error=missing_params`)
   }
 
-  // Validate state and retrieve verifier from cookies
-  const cookieState = req.cookies.get('oauth_state')?.value
-  const verifier = req.cookies.get('oauth_verifier')?.value
-  if (!verifier || !cookieState || cookieState !== state) {
+  // Extract verifier embedded in state (format: "<state>.<verifier>")
+  const dotIndex = stateParam.lastIndexOf('.')
+  if (dotIndex === -1) {
     return NextResponse.redirect(`${configUrl}?oauth_error=invalid_state`)
   }
+  const verifier = stateParam.substring(dotIndex + 1)
 
   const clientId = process.env.TWITTER_CLIENT_ID!
   const clientSecret = process.env.TWITTER_CLIENT_SECRET!
@@ -103,10 +103,7 @@ export async function GET(req: NextRequest) {
 
   await upsertOAuthAccount(account)
 
-  const successResponse = NextResponse.redirect(
+  return NextResponse.redirect(
     `${configUrl}?tab=oauth&connected=${encodeURIComponent(username)}`
   )
-  successResponse.cookies.delete('oauth_state')
-  successResponse.cookies.delete('oauth_verifier')
-  return successResponse
 }
