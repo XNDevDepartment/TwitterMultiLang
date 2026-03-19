@@ -38,6 +38,17 @@ export interface PostTweetParams {
   mediaIds?: string[]
 }
 
+export interface OAuthAccount {
+  id: string
+  x_user_id: string
+  username: string        // without @
+  languageCode: string | null  // null = unassigned
+  access_token: string
+  refresh_token: string
+  expires_at: number      // ms since epoch
+  created_at: number
+}
+
 export const SUPPORTED_LANGUAGES: {
   code: string
   googleCode: string

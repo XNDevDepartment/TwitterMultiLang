@@ -1,5 +1,66 @@
 import { TwitterApi } from 'twitter-api-v2'
-import type { AccountMapping, TwitterApiConfig, FetchedTweet, PostTweetParams } from '@/types'
+import type { AccountMapping, TwitterApiConfig, FetchedTweet, PostTweetParams, OAuthAccount } from '@/types'
+
+const X_TOKEN_URL = 'https://api.twitter.com/2/oauth2/token'
+
+// ─── OAuth 2.0 ────────────────────────────────────────────────────────────────
+
+export interface RefreshedTokens {
+  access_token: string
+  refresh_token: string
+  expires_at: number
+}
+
+export async function refreshOAuth2Token(
+  refreshToken: string
+): Promise<RefreshedTokens> {
+  const clientId = process.env.TWITTER_CLIENT_ID!
+  const clientSecret = process.env.TWITTER_CLIENT_SECRET!
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+
+  const res = await fetch(X_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${credentials}`,
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: clientId,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Token refresh failed: ${body}`)
+  }
+
+  const data = await res.json()
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token ?? refreshToken,
+    expires_at: Date.now() + data.expires_in * 1000,
+  }
+}
+
+/**
+ * Returns a ready-to-use OAuth 2.0 client, refreshing the token if needed.
+ * Returns the (potentially updated) account so the caller can persist new tokens.
+ */
+export async function getOAuth2Client(
+  account: OAuthAccount
+): Promise<{ client: TwitterApi; account: OAuthAccount }> {
+  let current = account
+
+  // Refresh if within 5 minutes of expiry
+  if (Date.now() >= current.expires_at - 5 * 60 * 1000) {
+    const refreshed = await refreshOAuth2Token(current.refresh_token)
+    current = { ...current, ...refreshed }
+  }
+
+  return { client: new TwitterApi(current.access_token), account: current }
+}
 
 function decodeToken(token: string): string {
   try {

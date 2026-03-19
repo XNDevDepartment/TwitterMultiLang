@@ -1,12 +1,18 @@
 import fs from 'fs'
 import path from 'path'
-import type { TwitterApiConfig, AccountMapping } from '@/types'
+import type { TwitterApiConfig, AccountMapping, OAuthAccount } from '@/types'
 
 const CONFIG_DIR = path.join(process.cwd(), 'config')
 const TWITTER_API_FILE = path.join(CONFIG_DIR, 'twitter-api.json')
 const ACCOUNTS_FILE = path.join(CONFIG_DIR, 'accounts.json')
+const OAUTH_ACCOUNTS_FILE = path.join(CONFIG_DIR, 'oauth-accounts.json')
 
 const KV_ACCOUNTS_KEY = 'accounts'
+const KV_OAUTH_ACCOUNTS_KEY = 'oauth_accounts'
+const STATE_TTL_SECONDS = 600 // 10 minutes
+
+// In-memory fallback for local dev (resets on server restart — fine for dev)
+const inMemoryStateStore = new Map<string, { verifier: string; ts: number }>()
 
 function isKVEnabled(): boolean {
   return !!process.env.KV_REST_API_URL
@@ -18,8 +24,9 @@ function ensureConfigDir() {
   }
 }
 
+// ─── Twitter App API Config ───────────────────────────────────────────────────
+
 export function getTwitterApiConfig(): TwitterApiConfig {
-  // Env vars take priority (required on Vercel, optional locally)
   if (process.env.TWITTER_API_KEY) {
     return {
       apiKey: process.env.TWITTER_API_KEY ?? '',
@@ -38,34 +45,25 @@ export function saveTwitterApiConfig(config: TwitterApiConfig): void {
   fs.writeFileSync(TWITTER_API_FILE, JSON.stringify(config, null, 2))
 }
 
+// ─── Legacy OAuth 1.0a Accounts ──────────────────────────────────────────────
+
 export async function getAccounts(): Promise<AccountMapping[]> {
-  // Env var: TWITTER_ACCOUNTS = JSON array string
   if (process.env.TWITTER_ACCOUNTS) {
-    try {
-      return JSON.parse(process.env.TWITTER_ACCOUNTS)
-    } catch {
-      return []
-    }
+    try { return JSON.parse(process.env.TWITTER_ACCOUNTS) } catch { return [] }
   }
   if (isKVEnabled()) {
     const { kv } = await import('@vercel/kv')
-    const accounts = await kv.get<AccountMapping[]>(KV_ACCOUNTS_KEY)
-    return accounts ?? []
+    return (await kv.get<AccountMapping[]>(KV_ACCOUNTS_KEY)) ?? []
   }
-  if (!fs.existsSync(ACCOUNTS_FILE)) {
-    return []
-  }
+  if (!fs.existsSync(ACCOUNTS_FILE)) return []
   return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf-8'))
 }
 
 export async function upsertAccount(account: AccountMapping): Promise<AccountMapping[]> {
   const accounts = await getAccounts()
   const idx = accounts.findIndex((a) => a.id === account.id)
-  if (idx >= 0) {
-    accounts[idx] = account
-  } else {
-    accounts.push(account)
-  }
+  if (idx >= 0) accounts[idx] = account
+  else accounts.push(account)
   if (isKVEnabled()) {
     const { kv } = await import('@vercel/kv')
     await kv.set(KV_ACCOUNTS_KEY, accounts)
@@ -87,6 +85,92 @@ export async function deleteAccount(id: string): Promise<AccountMapping[]> {
   }
   return accounts
 }
+
+// ─── OAuth 2.0 Accounts ───────────────────────────────────────────────────────
+
+export async function getOAuthAccounts(): Promise<OAuthAccount[]> {
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    return (await kv.get<OAuthAccount[]>(KV_OAUTH_ACCOUNTS_KEY)) ?? []
+  }
+  if (!fs.existsSync(OAUTH_ACCOUNTS_FILE)) return []
+  return JSON.parse(fs.readFileSync(OAUTH_ACCOUNTS_FILE, 'utf-8'))
+}
+
+export async function upsertOAuthAccount(account: OAuthAccount): Promise<OAuthAccount[]> {
+  const accounts = await getOAuthAccounts()
+  // Deduplicate by x_user_id (reconnecting same account updates tokens)
+  const idx = accounts.findIndex((a) => a.x_user_id === account.x_user_id)
+  if (idx >= 0) {
+    accounts[idx] = { ...accounts[idx], ...account }
+  } else {
+    accounts.push(account)
+  }
+  await saveOAuthAccounts(accounts)
+  return accounts
+}
+
+export async function updateOAuthAccount(
+  id: string,
+  patch: Partial<OAuthAccount>
+): Promise<OAuthAccount[]> {
+  const accounts = await getOAuthAccounts()
+  const idx = accounts.findIndex((a) => a.id === id)
+  if (idx >= 0) accounts[idx] = { ...accounts[idx], ...patch }
+  await saveOAuthAccounts(accounts)
+  return accounts
+}
+
+export async function deleteOAuthAccount(id: string): Promise<OAuthAccount[]> {
+  const accounts = (await getOAuthAccounts()).filter((a) => a.id !== id)
+  await saveOAuthAccounts(accounts)
+  return accounts
+}
+
+export async function getOAuthAccountForLanguage(
+  languageCode: string
+): Promise<OAuthAccount | undefined> {
+  const accounts = await getOAuthAccounts()
+  return accounts.find((a) => a.languageCode === languageCode)
+}
+
+async function saveOAuthAccounts(accounts: OAuthAccount[]): Promise<void> {
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    await kv.set(KV_OAUTH_ACCOUNTS_KEY, accounts)
+  } else {
+    ensureConfigDir()
+    fs.writeFileSync(OAUTH_ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
+  }
+}
+
+// ─── OAuth 2.0 State / PKCE Store ─────────────────────────────────────────────
+
+export async function saveOAuthState(state: string, verifier: string): Promise<void> {
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    await kv.set(`oauth_state:${state}`, verifier, { ex: STATE_TTL_SECONDS })
+  } else {
+    inMemoryStateStore.set(state, { verifier, ts: Date.now() })
+  }
+}
+
+export async function consumeOAuthState(state: string): Promise<string | null> {
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    const verifier = await kv.get<string>(`oauth_state:${state}`)
+    if (verifier) await kv.del(`oauth_state:${state}`)
+    return verifier ?? null
+  }
+  const entry = inMemoryStateStore.get(state)
+  if (!entry) return null
+  inMemoryStateStore.delete(state)
+  // Expire stale local entries
+  if (Date.now() - entry.ts > STATE_TTL_SECONDS * 1000) return null
+  return entry.verifier
+}
+
+// ─── Shared Utilities ─────────────────────────────────────────────────────────
 
 export function maskSecret(value: string): string {
   if (!value || value.length <= 8) return value ? '****' : ''

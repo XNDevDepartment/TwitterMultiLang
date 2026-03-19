@@ -8,6 +8,7 @@ import type {
   TweetType,
   FetchedTweet,
   AccountMapping,
+  OAuthAccount,
 } from '@/types'
 
 const MAX_TWEET_LENGTH = 280
@@ -27,6 +28,7 @@ export default function ComposerPage() {
   const [translationError, setTranslationError] = useState('')
 
   const [configuredAccounts, setConfiguredAccounts] = useState<AccountMapping[]>([])
+  const [oauthAccounts, setOauthAccounts] = useState<Omit<OAuthAccount, 'access_token' | 'refresh_token'>[]>([])
   const [publishing, setPublishing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -35,10 +37,23 @@ export default function ComposerPage() {
       .then((r) => r.json())
       .then((accounts: AccountMapping[]) => setConfiguredAccounts(accounts))
       .catch(() => {})
+    fetch('/api/x/accounts')
+      .then((r) => r.json())
+      .then(setOauthAccounts)
+      .catch(() => {})
   }, [])
 
   function hasAccount(langCode: string) {
-    return configuredAccounts.some((a) => a.languageCode === langCode)
+    return (
+      oauthAccounts.some((a) => a.languageCode === langCode) ||
+      configuredAccounts.some((a) => a.languageCode === langCode)
+    )
+  }
+
+  function getAccountBadge(langCode: string): { label: string; type: 'oauth2' | 'legacy' } | null {
+    if (oauthAccounts.some((a) => a.languageCode === langCode)) return { label: 'OAuth 2.0', type: 'oauth2' }
+    if (configuredAccounts.some((a) => a.languageCode === langCode)) return { label: 'Legacy', type: 'legacy' }
+    return null
   }
 
   async function handleFetchTweet() {
@@ -345,7 +360,6 @@ export default function ComposerPage() {
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
               {translations.map((entry, i) => {
                 const meta = langMeta(entry.languageCode)
-                const accountExists = hasAccount(entry.languageCode)
                 return (
                   <div
                     key={entry.languageCode}
@@ -361,11 +375,23 @@ export default function ComposerPage() {
                           {meta?.flag}
                         </span>
                         <span className="text-sm font-medium text-slate-300">{meta?.label}</span>
-                        {!accountExists && (
-                          <span className="text-xs text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded-full">
-                            no account
-                          </span>
-                        )}
+                        {(() => {
+                          const badge = getAccountBadge(entry.languageCode)
+                          if (!badge) return (
+                            <span className="text-xs text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded-full">
+                              no account
+                            </span>
+                          )
+                          return (
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full border ${
+                              badge.type === 'oauth2'
+                                ? 'text-violet-400 bg-violet-400/15 border-violet-400/30'
+                                : 'text-slate-400 bg-white/5 border-white/10'
+                            }`}>
+                              {badge.label}
+                            </span>
+                          )
+                        })()}
                       </div>
                       <div className="flex items-center gap-2">
                         <StatusBadge status={entry.status} errorMessage={entry.errorMessage} />

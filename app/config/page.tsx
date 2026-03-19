@@ -2,44 +2,80 @@
 
 import { useState, useEffect } from 'react'
 import { SUPPORTED_LANGUAGES } from '@/types'
-import type { AccountMapping } from '@/types'
+import type { AccountMapping, OAuthAccount } from '@/types'
 
-type Tab = 'api' | 'accounts'
+type Tab = 'api' | 'oauth' | 'legacy'
 
 export default function ConfigPage() {
   const [tab, setTab] = useState<Tab>('api')
+  const [oauthBanner, setOauthBanner] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const connected = params.get('connected')
+    const oauthError = params.get('oauth_error')
+    const tabParam = params.get('tab') as Tab | null
+
+    if (connected) {
+      setOauthBanner(`✓ @${connected} connected successfully`)
+      setTab('oauth')
+      window.history.replaceState({}, '', '/config?tab=oauth')
+    } else if (oauthError) {
+      setOauthBanner(`Error: ${oauthError.replace(/_/g, ' ')}`)
+      setTab('oauth')
+      window.history.replaceState({}, '', '/config?tab=oauth')
+    } else if (tabParam) {
+      setTab(tabParam)
+    }
+  }, [])
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'api', label: 'Twitter App API' },
+    { key: 'oauth', label: 'Connected Accounts' },
+    { key: 'legacy', label: 'Legacy Accounts' },
+  ]
 
   return (
     <div className="max-w-2xl space-y-4">
       <h1 className="text-xl font-semibold text-slate-200">Configuration</h1>
 
+      {oauthBanner && (
+        <div
+          className={`px-4 py-3 rounded-xl text-sm border ${
+            oauthBanner.startsWith('✓')
+              ? 'bg-emerald-400/10 border-emerald-400/20 text-emerald-400'
+              : 'bg-red-400/10 border-red-400/20 text-red-400'
+          }`}
+        >
+          {oauthBanner}
+          <button onClick={() => setOauthBanner(null)} className="ml-3 opacity-60 hover:opacity-100">
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="bg-white/5 p-1 rounded-xl flex gap-1">
-        <button
-          onClick={() => setTab('api')}
-          className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-            tab === 'api'
-              ? 'btn-gradient'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Twitter App API
-        </button>
-        <button
-          onClick={() => setTab('accounts')}
-          className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-            tab === 'accounts'
-              ? 'btn-gradient'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-        >
-          Account Mapping
-        </button>
+        {tabs.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+              tab === key ? 'btn-gradient' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {tab === 'api' ? <ApiConfigTab /> : <AccountsTab />}
+      {tab === 'api' && <ApiConfigTab />}
+      {tab === 'oauth' && <OAuthAccountsTab />}
+      {tab === 'legacy' && <AccountsTab />}
     </div>
   )
 }
+
+// ─── Twitter App API Tab ──────────────────────────────────────────────────────
 
 function ApiConfigTab() {
   const [apiKey, setApiKey] = useState('')
@@ -87,69 +123,44 @@ function ApiConfigTab() {
       <div>
         <h2 className="font-medium text-slate-200">Twitter / X App Credentials</h2>
         <p className="text-xs text-slate-500 mt-1">
-          These are the app-level credentials from your Twitter Developer Portal.
-          {configured && (
-            <span className="ml-2 text-emerald-400 font-medium">✓ Configured</span>
-          )}
+          App-level credentials from your Twitter Developer Portal.
+          {configured && <span className="ml-2 text-emerald-400 font-medium">✓ Configured</span>}
         </p>
       </div>
 
       <div className="bg-amber-400/10 border border-amber-400/20 rounded-xl p-3 text-xs text-amber-300 space-y-1">
-        <p className="font-medium">Note on OAuth</p>
+        <p className="font-medium">Required for OAuth 2.0 flow</p>
         <p>
-          Bearer Token is used for reading tweets. To post tweets, each account also needs
-          per-user <strong>Access Token</strong> and <strong>Access Token Secret</strong> (OAuth
-          1.0a) — configure those in the Account Mapping tab.
+          Set <code className="font-mono bg-white/10 px-1 rounded">TWITTER_CLIENT_ID</code> and{' '}
+          <code className="font-mono bg-white/10 px-1 rounded">TWITTER_CLIENT_SECRET</code> in
+          your environment to enable the &quot;Connect Account&quot; OAuth 2.0 flow. Bearer Token is used
+          for reading tweets (fetching from URL mode).
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">API Key</label>
-          <input
-            type="text"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="input-dark text-sm font-mono"
-            placeholder="API Key (Consumer Key)"
-            autoComplete="off"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">API Secret</label>
-          <input
-            type="password"
-            value={apiSecret}
-            onChange={(e) => setApiSecret(e.target.value)}
-            className="input-dark text-sm font-mono"
-            placeholder="API Secret (Consumer Secret)"
-            autoComplete="off"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-400 mb-1">Bearer Token</label>
-          <input
-            type="password"
-            value={bearerToken}
-            onChange={(e) => setBearerToken(e.target.value)}
-            className="input-dark text-sm font-mono"
-            placeholder="Bearer Token"
-            autoComplete="off"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn-gradient px-4 py-2 text-sm"
-        >
+        {[
+          { label: 'API Key', value: apiKey, set: setApiKey, type: 'text', placeholder: 'API Key (Consumer Key)' },
+          { label: 'API Secret', value: apiSecret, set: setApiSecret, type: 'password', placeholder: 'API Secret (Consumer Secret)' },
+          { label: 'Bearer Token', value: bearerToken, set: setBearerToken, type: 'password', placeholder: 'Bearer Token' },
+        ].map(({ label, value, set, type, placeholder }) => (
+          <div key={label}>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{label}</label>
+            <input
+              type={type}
+              value={value}
+              onChange={(e) => set(e.target.value)}
+              className="input-dark text-sm font-mono"
+              placeholder={placeholder}
+              autoComplete="off"
+            />
+          </div>
+        ))}
+        <button type="submit" disabled={saving} className="btn-gradient px-4 py-2 text-sm">
           {saving ? 'Saving...' : 'Save'}
         </button>
         {message && (
-          <p
-            className={`text-sm ${
-              message.includes('success') ? 'text-emerald-400' : 'text-red-400'
-            }`}
-          >
+          <p className={`text-sm ${message.includes('success') ? 'text-emerald-400' : 'text-red-400'}`}>
             {message}
           </p>
         )}
@@ -158,11 +169,13 @@ function ApiConfigTab() {
   )
 }
 
-function AccountsTab() {
-  const [accounts, setAccounts] = useState<AccountMapping[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<Partial<AccountMapping>>({})
-  const [saving, setSaving] = useState(false)
+// ─── OAuth 2.0 Connected Accounts Tab ────────────────────────────────────────
+
+type SafeOAuthAccount = Omit<OAuthAccount, 'access_token' | 'refresh_token'>
+
+function OAuthAccountsTab() {
+  const [accounts, setAccounts] = useState<SafeOAuthAccount[]>([])
+  const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -170,9 +183,151 @@ function AccountsTab() {
   }, [])
 
   async function loadAccounts() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/x/accounts')
+      setAccounts(await res.json())
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleAssignLanguage(id: string, languageCode: string | null) {
+    const res = await fetch(`/api/x/accounts/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ languageCode }),
+    })
+    if (res.ok) setAccounts(await res.json())
+  }
+
+  async function handleDisconnect(id: string, username: string) {
+    if (!confirm(`Disconnect @${username}?`)) return
+    const res = await fetch(`/api/x/accounts/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setAccounts(await res.json())
+      setMessage(`@${username} disconnected.`)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-medium text-slate-200">Connected X Accounts</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Authorize each X account via OAuth 2.0, then assign it a language.
+            </p>
+          </div>
+          <a
+            href="/api/x/connect"
+            className="btn-gradient px-3 py-1.5 text-sm inline-block"
+          >
+            + Connect Account
+          </a>
+        </div>
+
+        {message && (
+          <p className="text-sm text-emerald-400">{message}</p>
+        )}
+
+        {loading ? (
+          <p className="text-sm text-slate-500 italic">Loading…</p>
+        ) : accounts.length === 0 ? (
+          <p className="text-sm text-slate-500 italic">
+            No accounts connected yet. Click &quot;Connect Account&quot; to authorize your first X account.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {accounts.map((acc) => (
+              <div
+                key={acc.id}
+                className="rounded-xl border border-white/10 bg-white/5 p-3 flex items-center gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-200 text-sm">@{acc.username}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {acc.expires_at > Date.now()
+                      ? `Token valid until ${new Date(acc.expires_at).toLocaleString()}`
+                      : <span className="text-amber-400">Token expired — will auto-refresh on next post</span>}
+                  </p>
+                </div>
+
+                <select
+                  value={acc.languageCode ?? ''}
+                  onChange={(e) =>
+                    handleAssignLanguage(acc.id, e.target.value || null)
+                  }
+                  className="input-dark text-sm w-48"
+                >
+                  <option value="" className="bg-[#080b14]">— Assign language —</option>
+                  {SUPPORTED_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code} className="bg-[#080b14]">
+                      {l.flag} {l.label}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => handleDisconnect(acc.id, acc.username)}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors whitespace-nowrap"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="glass-card p-4 text-xs text-slate-500 space-y-2">
+        <p className="font-medium text-slate-400">Setup checklist</p>
+        <ol className="list-decimal list-inside space-y-1">
+          <li>In your X App settings, enable OAuth 2.0 with PKCE</li>
+          <li>
+            Add callback URL:{' '}
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">
+              {typeof window !== 'undefined' ? window.location.origin : ''}/api/x/callback
+            </code>
+          </li>
+          <li>
+            Enable scopes:{' '}
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">
+              tweet.read users.read tweet.write offline.access
+            </code>
+          </li>
+          <li>
+            Set env vars{' '}
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">TWITTER_CLIENT_ID</code>{' '}
+            and{' '}
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">TWITTER_CLIENT_SECRET</code>
+          </li>
+          <li>Click &quot;Connect Account&quot; for each X account you want to manage</li>
+          <li>Assign each connected account to a language</li>
+        </ol>
+        <p className="text-slate-600 mt-2">
+          Note: OAuth 2.0 accounts support text tweets. Image upload requires Legacy Account credentials.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Legacy OAuth 1.0a Accounts Tab ──────────────────────────────────────────
+
+function AccountsTab() {
+  const [accounts, setAccounts] = useState<AccountMapping[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<Partial<AccountMapping>>({})
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => { loadAccounts() }, [])
+
+  async function loadAccounts() {
     const res = await fetch('/api/config/accounts')
-    const data = await res.json()
-    setAccounts(data)
+    setAccounts(await res.json())
   }
 
   function startAdd() {
@@ -245,16 +400,13 @@ function AccountsTab() {
       <div className="glass-card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-medium text-slate-200">Per-Language Account Mapping</h2>
+            <h2 className="font-medium text-slate-200">Legacy — OAuth 1.0a Accounts</h2>
             <p className="text-xs text-slate-500 mt-1">
-              Each language needs an X/Twitter account with OAuth 1.0a tokens to post.
+              Manual token entry. Used as fallback when no OAuth 2.0 account is assigned to a language. Also required for image uploads.
             </p>
           </div>
           {editingId === null && (
-            <button
-              onClick={startAdd}
-              className="btn-gradient px-3 py-1.5 text-sm"
-            >
+            <button onClick={startAdd} className="btn-gradient px-3 py-1.5 text-sm">
               + Add Account
             </button>
           )}
@@ -266,7 +418,6 @@ function AccountsTab() {
           </p>
         )}
 
-        {/* Edit form */}
         {editingId !== null && (
           <div className="border border-violet-400/30 bg-violet-400/5 rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-medium text-slate-200">
@@ -288,9 +439,7 @@ function AccountsTab() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Handle (display)
-                </label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Handle</label>
                 <input
                   type="text"
                   value={form.handle ?? ''}
@@ -300,9 +449,7 @@ function AccountsTab() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Access Token
-                </label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Access Token</label>
                 <input
                   type="text"
                   value={form.accessToken ?? ''}
@@ -313,9 +460,7 @@ function AccountsTab() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Access Token Secret
-                </label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Access Token Secret</label>
                 <input
                   type="password"
                   value={form.accessTokenSecret ?? ''}
@@ -327,11 +472,7 @@ function AccountsTab() {
               </div>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="btn-gradient px-3 py-1.5 text-sm"
-              >
+              <button onClick={handleSave} disabled={saving} className="btn-gradient px-3 py-1.5 text-sm">
                 {saving ? 'Saving...' : 'Save'}
               </button>
               <button
@@ -344,9 +485,8 @@ function AccountsTab() {
           </div>
         )}
 
-        {/* Account list */}
         {accounts.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">No accounts configured yet.</p>
+          <p className="text-sm text-slate-500 italic">No legacy accounts configured.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -363,23 +503,11 @@ function AccountsTab() {
                   <tr key={acc.id} className="border-b border-white/5 last:border-0">
                     <td className="py-2 pr-4 text-slate-300">{langLabel(acc.languageCode)}</td>
                     <td className="py-2 pr-4 text-slate-400">{acc.handle}</td>
-                    <td className="py-2 pr-4 font-mono text-xs text-slate-500">
-                      {acc.accessToken}
-                    </td>
+                    <td className="py-2 pr-4 font-mono text-xs text-slate-500">{acc.accessToken}</td>
                     <td className="py-2">
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => startEdit(acc)}
-                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(acc.id)}
-                          className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          Delete
-                        </button>
+                        <button onClick={() => startEdit(acc)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Edit</button>
+                        <button onClick={() => handleDelete(acc.id)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -391,7 +519,7 @@ function AccountsTab() {
       </div>
 
       <div className="glass-card p-4 text-xs text-slate-500 space-y-1">
-        <p className="font-medium text-slate-400">How to get Access Tokens</p>
+        <p className="font-medium text-slate-400">How to get OAuth 1.0a tokens</p>
         <ol className="list-decimal list-inside space-y-0.5">
           <li>Go to developer.twitter.com → your App → &quot;Keys and tokens&quot;</li>
           <li>Under &quot;Authentication Tokens&quot;, generate Access Token &amp; Secret</li>
