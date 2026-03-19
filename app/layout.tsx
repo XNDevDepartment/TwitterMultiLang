@@ -13,16 +13,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen antialiased relative overflow-x-hidden">
         <div className="bg-orb-blue" />
         <div className="bg-orb-purple" />
-        <nav className="glass-card rounded-none border-x-0 border-t-0 sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
+        <nav className="glass-card rounded-none border-x-0 border-t-0 sticky top-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
           <Link
             href="/"
-            className="font-semibold text-lg bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent"
+            className="font-semibold text-base sm:text-lg bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent truncate min-w-0"
           >
             TwitterMultiLang Hub
           </Link>
           <Link
             href="/config"
-            className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors"
+            className="text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors shrink-0 min-h-[44px] px-1"
           >
             ⚙️ Config
           </Link>

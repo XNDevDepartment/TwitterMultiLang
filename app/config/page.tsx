@@ -59,7 +59,7 @@ export default function ConfigPage() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+            className={`flex-1 px-2 py-2.5 text-xs sm:text-sm font-medium rounded-lg transition-all leading-tight text-center ${
               tab === key ? 'btn-gradient' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -228,8 +228,8 @@ function OAuthAccountsTab() {
   return (
     <div className="space-y-4">
       <div className="glass-card p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
             <h2 className="font-medium text-slate-200">Connected X Accounts</h2>
             <p className="text-xs text-slate-500 mt-1">
               Authorize each X account via OAuth 2.0, then assign it a language.
@@ -237,7 +237,7 @@ function OAuthAccountsTab() {
           </div>
           <a
             href="/api/x/connect"
-            className="btn-gradient px-3 py-1.5 text-sm inline-block"
+            className="btn-gradient px-3 text-sm shrink-0"
           >
             + Connect Account
           </a>
@@ -260,15 +260,23 @@ function OAuthAccountsTab() {
             {accounts.map((acc) => (
               <div
                 key={acc.id}
-                className="rounded-xl border border-white/10 bg-white/5 p-3 flex items-center gap-3"
+                className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-200 text-sm">@{acc.username}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {acc.expires_at > Date.now()
-                      ? `Token valid until ${new Date(acc.expires_at).toLocaleString()}`
-                      : <span className="text-amber-400">Token expired — will auto-refresh on next post</span>}
-                  </p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-slate-200 text-sm">@{acc.username}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {acc.expires_at > Date.now()
+                        ? `Token valid until ${new Date(acc.expires_at).toLocaleString()}`
+                        : <span className="text-amber-400">Token expired — will auto-refresh on next post</span>}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDisconnect(acc.id, acc.username)}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors whitespace-nowrap shrink-0 min-h-[44px] px-1"
+                  >
+                    Disconnect
+                  </button>
                 </div>
 
                 <select
@@ -276,7 +284,7 @@ function OAuthAccountsTab() {
                   onChange={(e) =>
                     handleAssignLanguage(acc.id, e.target.value || null)
                   }
-                  className="input-dark text-sm w-48"
+                  className="input-dark text-sm w-full"
                 >
                   <option value="" className="bg-[#080b14]">— Assign language —</option>
                   {SUPPORTED_LANGUAGES.map((l) => (
@@ -285,13 +293,6 @@ function OAuthAccountsTab() {
                     </option>
                   ))}
                 </select>
-
-                <button
-                  onClick={() => handleDisconnect(acc.id, acc.username)}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors whitespace-nowrap"
-                >
-                  Disconnect
-                </button>
               </div>
             ))}
           </div>
@@ -304,21 +305,21 @@ function OAuthAccountsTab() {
           <li>In your X App settings, enable OAuth 2.0 with PKCE</li>
           <li>
             Add callback URL:{' '}
-            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300 break-all">
               {typeof window !== 'undefined' ? window.location.origin : ''}/api/x/callback
             </code>
           </li>
           <li>
             Enable scopes:{' '}
-            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300 break-all">
               tweet.read users.read tweet.write offline.access
             </code>
           </li>
           <li>
             Set env vars{' '}
-            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">TWITTER_CLIENT_ID</code>{' '}
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300 break-all">TWITTER_CLIENT_ID</code>{' '}
             and{' '}
-            <code className="font-mono bg-white/10 px-1 rounded text-slate-300">TWITTER_CLIENT_SECRET</code>
+            <code className="font-mono bg-white/10 px-1 rounded text-slate-300 break-all">TWITTER_CLIENT_SECRET</code>
           </li>
           <li>Click &quot;Connect Account&quot; for each X account you want to manage</li>
           <li>Assign each connected account to a language</li>
@@ -415,15 +416,15 @@ function AccountsTab() {
   return (
     <div className="space-y-4">
       <div className="glass-card p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
             <h2 className="font-medium text-slate-200">Legacy — OAuth 1.0a Accounts</h2>
             <p className="text-xs text-slate-500 mt-1">
               Manual token entry. Used as fallback when no OAuth 2.0 account is assigned to a language. Also required for image uploads.
             </p>
           </div>
           {editingId === null && (
-            <button onClick={startAdd} className="btn-gradient px-3 py-1.5 text-sm">
+            <button onClick={startAdd} className="btn-gradient px-3 text-sm shrink-0">
               + Add Account
             </button>
           )}
@@ -440,7 +441,7 @@ function AccountsTab() {
             <h3 className="text-sm font-medium text-slate-200">
               {editingId === 'new' ? 'Add Account' : 'Edit Account'}
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Language</label>
                 <select
@@ -511,7 +512,7 @@ function AccountsTab() {
                 <tr className="text-left text-xs text-slate-500 border-b border-white/5">
                   <th className="pb-2 pr-4">Language</th>
                   <th className="pb-2 pr-4">Handle</th>
-                  <th className="pb-2 pr-4">Access Token</th>
+                  <th className="pb-2 pr-4 hidden sm:table-cell">Access Token</th>
                   <th className="pb-2"></th>
                 </tr>
               </thead>
@@ -520,7 +521,7 @@ function AccountsTab() {
                   <tr key={acc.id} className="border-b border-white/5 last:border-0">
                     <td className="py-2 pr-4 text-slate-300">{langLabel(acc.languageCode)}</td>
                     <td className="py-2 pr-4 text-slate-400">{acc.handle}</td>
-                    <td className="py-2 pr-4 font-mono text-xs text-slate-500">{acc.accessToken}</td>
+                    <td className="py-2 pr-4 font-mono text-xs text-slate-500 hidden sm:table-cell">{acc.accessToken}</td>
                     <td className="py-2">
                       <div className="flex gap-2">
                         <button onClick={() => startEdit(acc)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Edit</button>

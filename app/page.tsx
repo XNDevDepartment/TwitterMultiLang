@@ -203,7 +203,7 @@ export default function ComposerPage() {
       <div className="flex gap-2">
         <button
           onClick={() => setInputMode('new')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all ${
             inputMode === 'new'
               ? 'btn-gradient'
               : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
@@ -213,7 +213,7 @@ export default function ComposerPage() {
         </button>
         <button
           onClick={() => setInputMode('url')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-all ${
             inputMode === 'url'
               ? 'btn-gradient'
               : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
@@ -244,7 +244,7 @@ export default function ComposerPage() {
                   <button
                     onClick={handleFetchTweet}
                     disabled={!tweetUrl || fetchLoading}
-                    className="btn-gradient px-3 py-2 text-sm"
+                    className="btn-gradient px-3 text-sm shrink-0"
                   >
                     {fetchLoading ? '...' : 'Load'}
                   </button>
@@ -339,7 +339,7 @@ export default function ComposerPage() {
                     />
                     <button
                       onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center hover:bg-red-400"
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center hover:bg-red-400"
                     >
                       ×
                     </button>
@@ -366,7 +366,7 @@ export default function ComposerPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => loadAccounts()}
-                className="text-slate-500 hover:text-slate-300 transition-colors text-sm"
+                className="text-slate-500 hover:text-slate-300 transition-colors text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
                 title="Refresh accounts"
               >
                 ↻
@@ -375,7 +375,7 @@ export default function ComposerPage() {
                 <button
                   onClick={handlePublishAll}
                   disabled={publishing || enabledCount === 0}
-                  className="btn-gradient px-4 py-1.5 text-sm"
+                  className="btn-gradient px-4 text-sm"
                 >
                   {publishing ? 'Publishing...' : `Publish All (${enabledCount})`}
                 </button>
@@ -397,7 +397,7 @@ export default function ComposerPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[50vh] sm:max-h-[600px] overflow-y-auto pr-1">
               {translations.map((entry, i) => {
                 const meta = langMeta(entry.languageCode)
                 return (
@@ -409,7 +409,7 @@ export default function ComposerPage() {
                         : 'border-white/5 bg-white/[0.02] opacity-60'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="text-base transition-transform hover:scale-125 inline-block">
                           {meta?.flag}
