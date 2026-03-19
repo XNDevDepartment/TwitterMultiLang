@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     if (!tokenRes.ok) {
       const body = await tokenRes.text()
       console.error('Token exchange failed:', body)
-      return NextResponse.redirect(`${configUrl}?oauth_error=token_exchange_failed`)
+      return NextResponse.redirect(`${configUrl}?oauth_error=${encodeURIComponent(body)}`)
     }
 
     tokenData = await tokenRes.json()
