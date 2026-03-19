@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { generateState, generateCodeVerifier, generateCodeChallenge } from '@/lib/pkce'
-import { saveOAuthState } from '@/lib/config'
 
 const X_AUTH_URL = 'https://twitter.com/i/oauth2/authorize'
 const SCOPES = 'tweet.read users.read tweet.write offline.access'
@@ -21,8 +20,6 @@ export async function GET() {
   const verifier = generateCodeVerifier()
   const challenge = generateCodeChallenge(verifier)
 
-  await saveOAuthState(state, verifier)
-
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: clientId,
@@ -33,5 +30,8 @@ export async function GET() {
     code_challenge_method: 'S256',
   })
 
-  return NextResponse.redirect(`${X_AUTH_URL}?${params.toString()}`)
+  const response = NextResponse.redirect(`${X_AUTH_URL}?${params.toString()}`)
+  response.cookies.set('oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600 })
+  response.cookies.set('oauth_verifier', verifier, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 600 })
+  return response
 }

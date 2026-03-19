@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { consumeOAuthState, upsertOAuthAccount } from '@/lib/config'
+import { upsertOAuthAccount } from '@/lib/config'
 import { randomUUID } from 'crypto'
 import type { OAuthAccount } from '@/types'
 
@@ -23,9 +23,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${configUrl}?oauth_error=missing_params`)
   }
 
-  // Validate state and retrieve verifier (single-use)
-  const verifier = await consumeOAuthState(state)
-  if (!verifier) {
+  // Validate state and retrieve verifier from cookies
+  const cookieState = req.cookies.get('oauth_state')?.value
+  const verifier = req.cookies.get('oauth_verifier')?.value
+  if (!verifier || !cookieState || cookieState !== state) {
     return NextResponse.redirect(`${configUrl}?oauth_error=invalid_state`)
   }
 
@@ -102,7 +103,10 @@ export async function GET(req: NextRequest) {
 
   await upsertOAuthAccount(account)
 
-  return NextResponse.redirect(
+  const successResponse = NextResponse.redirect(
     `${configUrl}?tab=oauth&connected=${encodeURIComponent(username)}`
   )
+  successResponse.cookies.delete('oauth_state')
+  successResponse.cookies.delete('oauth_verifier')
+  return successResponse
 }
