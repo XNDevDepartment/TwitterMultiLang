@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Twitter API credentials not configured' }, { status: 400 })
     }
 
-    const accounts = getAccounts()
+    const accounts = await getAccounts()
     const account = accounts.find((a) => a.languageCode === languageCode)
     if (!account) {
       return NextResponse.json(

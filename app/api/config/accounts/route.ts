@@ -12,14 +12,14 @@ function maskAccount(account: AccountMapping) {
 }
 
 export async function GET() {
-  const accounts = getAccounts()
+  const accounts = await getAccounts()
   return NextResponse.json(accounts.map(maskAccount))
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const existing = getAccounts()
+    const existing = await getAccounts()
     const existingAccount = existing.find((a) => a.id === body.id)
 
     const account: AccountMapping = {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
           : body.accessTokenSecret ?? '',
     }
 
-    const accounts = upsertAccount(account)
+    const accounts = await upsertAccount(account)
     return NextResponse.json(accounts.map(maskAccount))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to save account'
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { id } = await req.json()
-    const accounts = deleteAccount(id)
+    const accounts = await deleteAccount(id)
     return NextResponse.json(accounts.map(maskAccount))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to delete account'

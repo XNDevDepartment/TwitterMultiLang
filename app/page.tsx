@@ -166,20 +166,20 @@ export default function ComposerPage() {
       <div className="flex gap-2">
         <button
           onClick={() => setInputMode('new')}
-          className={`px-4 py-2 rounded text-sm font-medium ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             inputMode === 'new'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              ? 'btn-gradient'
+              : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
           }`}
         >
           New Tweet
         </button>
         <button
           onClick={() => setInputMode('url')}
-          className={`px-4 py-2 rounded text-sm font-medium ${
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
             inputMode === 'url'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              ? 'btn-gradient'
+              : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'
           }`}
         >
           From URL
@@ -188,13 +188,13 @@ export default function ComposerPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Compose */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
-          <h2 className="font-semibold text-gray-800">Compose</h2>
+        <div className="glass-card p-5 space-y-4 animate-slide-up">
+          <h2 className="font-semibold text-slate-200">Compose</h2>
 
           {inputMode === 'url' && (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tweet URL</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Tweet URL</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -202,49 +202,49 @@ export default function ComposerPage() {
                     onChange={(e) => setTweetUrl(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleFetchTweet()}
                     placeholder="https://x.com/user/status/123..."
-                    className="flex-1 rounded border-gray-300 text-sm"
+                    className="input-dark flex-1 text-sm"
                   />
                   <button
                     onClick={handleFetchTweet}
                     disabled={!tweetUrl || fetchLoading}
-                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded disabled:opacity-50 hover:bg-blue-700"
+                    className="btn-gradient px-3 py-2 text-sm"
                   >
                     {fetchLoading ? '...' : 'Load'}
                   </button>
                 </div>
-                {fetchError && <p className="text-red-600 text-xs mt-1">{fetchError}</p>}
+                {fetchError && <p className="text-red-400 text-xs mt-1">{fetchError}</p>}
               </div>
 
               {fetchedTweet && (
-                <div className="bg-gray-50 rounded p-3 text-sm space-y-1 border border-gray-200">
-                  <p className="font-medium text-gray-700">
+                <div className="bg-white/5 rounded-xl p-3 text-sm space-y-1 border border-white/10">
+                  <p className="font-medium text-slate-300">
                     {fetchedTweet.authorName}{' '}
-                    <span className="text-gray-500 font-normal">{fetchedTweet.authorHandle}</span>
+                    <span className="text-slate-500 font-normal">{fetchedTweet.authorHandle}</span>
                   </p>
-                  <p className="text-gray-600 text-xs">{fetchedTweet.text}</p>
+                  <p className="text-slate-400 text-xs">{fetchedTweet.text}</p>
                 </div>
               )}
 
               <div className="flex gap-4">
-                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-1.5 text-sm text-slate-400 cursor-pointer">
                   <input
                     type="radio"
                     name="tweetType"
                     value="quote"
                     checked={tweetType === 'quote'}
                     onChange={() => setTweetType('quote')}
-                    className="text-blue-600"
+                    className="text-violet-500"
                   />
                   Quote Tweet
                 </label>
-                <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-1.5 text-sm text-slate-400 cursor-pointer">
                   <input
                     type="radio"
                     name="tweetType"
                     value="reply"
                     checked={tweetType === 'reply'}
                     onChange={() => setTweetType('reply')}
-                    className="text-blue-600"
+                    className="text-violet-500"
                   />
                   Reply
                 </label>
@@ -254,10 +254,10 @@ export default function ComposerPage() {
 
           <div>
             <div className="flex justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">Text</label>
+              <label className="block text-sm font-medium text-slate-400">Text</label>
               <span
                 className={`text-xs ${
-                  composedText.length > MAX_TWEET_LENGTH ? 'text-red-600' : 'text-gray-400'
+                  composedText.length > MAX_TWEET_LENGTH ? 'text-red-400' : 'text-slate-500'
                 }`}
               >
                 {composedText.length}/{MAX_TWEET_LENGTH}
@@ -267,7 +267,7 @@ export default function ComposerPage() {
               value={composedText}
               onChange={(e) => setComposedText(e.target.value)}
               rows={5}
-              className="w-full rounded border-gray-300 text-sm"
+              className="input-dark text-sm resize-none"
               placeholder="What's happening?"
             />
           </div>
@@ -278,7 +278,7 @@ export default function ComposerPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={images.length >= 4}
-              className="text-sm text-blue-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               📎 Attach image ({images.length}/4)
             </button>
@@ -298,11 +298,11 @@ export default function ComposerPage() {
                     <img
                       src={img}
                       alt=""
-                      className="w-16 h-16 object-cover rounded border border-gray-200"
+                      className="w-16 h-16 object-cover rounded-lg border border-white/10"
                     />
                     <button
                       onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center"
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center hover:bg-red-400"
                     >
                       ×
                     </button>
@@ -315,22 +315,22 @@ export default function ComposerPage() {
           <button
             onClick={handleTranslate}
             disabled={!composedText.trim() || translating}
-            className="w-full py-2 bg-blue-600 text-white rounded font-medium text-sm hover:bg-blue-700 disabled:opacity-50"
+            className="btn-gradient w-full py-2 text-sm"
           >
             {translating ? 'Translating...' : '→ Translate'}
           </button>
-          {translationError && <p className="text-red-600 text-xs">{translationError}</p>}
+          {translationError && <p className="text-red-400 text-xs">{translationError}</p>}
         </div>
 
         {/* Right: Translations */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+        <div className="glass-card p-5 space-y-4 animate-slide-up">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-800">Translations</h2>
+            <h2 className="font-semibold text-slate-200">Translations</h2>
             {translations.length > 0 && (
               <button
                 onClick={handlePublishAll}
                 disabled={publishing || enabledCount === 0}
-                className="px-4 py-1.5 bg-green-600 text-white text-sm rounded font-medium hover:bg-green-700 disabled:opacity-50"
+                className="btn-gradient px-4 py-1.5 text-sm"
               >
                 {publishing ? 'Publishing...' : `Publish All (${enabledCount})`}
               </button>
@@ -338,7 +338,7 @@ export default function ComposerPage() {
           </div>
 
           {translations.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">
+            <p className="text-sm text-slate-500 italic">
               Compose your tweet and click &quot;Translate&quot; to see translations here.
             </p>
           ) : (
@@ -349,18 +349,20 @@ export default function ComposerPage() {
                 return (
                   <div
                     key={entry.languageCode}
-                    className={`rounded border p-3 space-y-2 ${
+                    className={`rounded-xl border p-3 space-y-2 transition-all ${
                       entry.enabled
-                        ? 'border-gray-200'
-                        : 'border-gray-100 bg-gray-50 opacity-60'
+                        ? 'border-white/10 bg-white/5 hover:border-white/20'
+                        : 'border-white/5 bg-white/[0.02] opacity-60'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-base">{meta?.flag}</span>
-                        <span className="text-sm font-medium text-gray-700">{meta?.label}</span>
+                        <span className="text-base transition-transform hover:scale-125 inline-block">
+                          {meta?.flag}
+                        </span>
+                        <span className="text-sm font-medium text-slate-300">{meta?.label}</span>
                         {!accountExists && (
-                          <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                          <span className="text-xs text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded-full">
                             no account
                           </span>
                         )}
@@ -372,9 +374,9 @@ export default function ComposerPage() {
                             type="checkbox"
                             checked={entry.enabled}
                             onChange={(e) => updateTranslation(i, 'enabled', e.target.checked)}
-                            className="rounded text-blue-600"
+                            className="rounded text-violet-500"
                           />
-                          <span className="text-xs text-gray-500">publish</span>
+                          <span className="text-xs text-slate-500">publish</span>
                         </label>
                       </div>
                     </div>
@@ -382,12 +384,12 @@ export default function ComposerPage() {
                       value={entry.text}
                       onChange={(e) => updateTranslation(i, 'text', e.target.value)}
                       rows={3}
-                      className="w-full rounded border-gray-300 text-xs"
+                      className="input-dark text-xs resize-none"
                     />
                     <div className="text-right">
                       <span
                         className={`text-xs ${
-                          entry.text.length > MAX_TWEET_LENGTH ? 'text-red-600' : 'text-gray-400'
+                          entry.text.length > MAX_TWEET_LENGTH ? 'text-red-400' : 'text-slate-600'
                         }`}
                       >
                         {entry.text.length}/{MAX_TWEET_LENGTH}
@@ -407,13 +409,21 @@ export default function ComposerPage() {
 function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
   if (status === 'idle') return null
   if (status === 'pending')
-    return <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">⏳</span>
+    return (
+      <span className="text-xs bg-amber-400/15 border border-amber-400/30 text-amber-400 px-2 py-0.5 rounded-full animate-pulse-glow animate-pulse">
+        ⏳
+      </span>
+    )
   if (status === 'success')
-    return <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">✓</span>
+    return (
+      <span className="text-xs bg-emerald-400/15 border border-emerald-400/30 text-emerald-400 px-2 py-0.5 rounded-full">
+        ✓
+      </span>
+    )
   if (status === 'error')
     return (
       <span
-        className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded cursor-help"
+        className="text-xs bg-red-400/15 border border-red-400/30 text-red-400 px-2 py-0.5 rounded-full cursor-help"
         title={errorMessage}
       >
         ✗

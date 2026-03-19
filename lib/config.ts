@@ -6,11 +6,14 @@ const CONFIG_DIR = path.join(process.cwd(), 'config')
 const TWITTER_API_FILE = path.join(CONFIG_DIR, 'twitter-api.json')
 const ACCOUNTS_FILE = path.join(CONFIG_DIR, 'accounts.json')
 
-// On Vercel (or any read-only filesystem), writes are skipped gracefully.
-const isReadOnly = process.env.VERCEL === '1'
+const KV_ACCOUNTS_KEY = 'accounts'
+
+function isKVEnabled(): boolean {
+  return !!process.env.KV_REST_API_URL
+}
 
 function ensureConfigDir() {
-  if (!isReadOnly && !fs.existsSync(CONFIG_DIR)) {
+  if (!fs.existsSync(CONFIG_DIR)) {
     fs.mkdirSync(CONFIG_DIR, { recursive: true })
   }
 }
@@ -31,12 +34,11 @@ export function getTwitterApiConfig(): TwitterApiConfig {
 }
 
 export function saveTwitterApiConfig(config: TwitterApiConfig): void {
-  if (isReadOnly) return
   ensureConfigDir()
   fs.writeFileSync(TWITTER_API_FILE, JSON.stringify(config, null, 2))
 }
 
-export function getAccounts(): AccountMapping[] {
+export async function getAccounts(): Promise<AccountMapping[]> {
   // Env var: TWITTER_ACCOUNTS = JSON array string
   if (process.env.TWITTER_ACCOUNTS) {
     try {
@@ -45,31 +47,44 @@ export function getAccounts(): AccountMapping[] {
       return []
     }
   }
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    const accounts = await kv.get<AccountMapping[]>(KV_ACCOUNTS_KEY)
+    return accounts ?? []
+  }
   if (!fs.existsSync(ACCOUNTS_FILE)) {
     return []
   }
   return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf-8'))
 }
 
-export function upsertAccount(account: AccountMapping): AccountMapping[] {
-  if (isReadOnly) return getAccounts()
-  ensureConfigDir()
-  const accounts = getAccounts()
+export async function upsertAccount(account: AccountMapping): Promise<AccountMapping[]> {
+  const accounts = await getAccounts()
   const idx = accounts.findIndex((a) => a.id === account.id)
   if (idx >= 0) {
     accounts[idx] = account
   } else {
     accounts.push(account)
   }
-  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    await kv.set(KV_ACCOUNTS_KEY, accounts)
+  } else {
+    ensureConfigDir()
+    fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
+  }
   return accounts
 }
 
-export function deleteAccount(id: string): AccountMapping[] {
-  if (isReadOnly) return getAccounts()
-  ensureConfigDir()
-  const accounts = getAccounts().filter((a) => a.id !== id)
-  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
+export async function deleteAccount(id: string): Promise<AccountMapping[]> {
+  const accounts = (await getAccounts()).filter((a) => a.id !== id)
+  if (isKVEnabled()) {
+    const { kv } = await import('@vercel/kv')
+    await kv.set(KV_ACCOUNTS_KEY, accounts)
+  } else {
+    ensureConfigDir()
+    fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
+  }
   return accounts
 }
 

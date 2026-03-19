@@ -2,6 +2,99 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --glow-blue: rgba(59, 130, 246, 0.5);
+  --glow-purple: rgba(139, 92, 246, 0.5);
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
+  background-color: #080b14;
+  color: #e2e8f0;
+}
+
+/* Custom dark scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+@layer components {
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    border-radius: 1rem;
+  }
+
+  .btn-gradient {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-gradient:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    transform: translateY(-1px);
+  }
+  .btn-gradient:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .input-dark {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input-dark::placeholder {
+    color: rgba(226, 232, 240, 0.35);
+  }
+  .input-dark:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+  }
+
+  .bg-orb-blue {
+    position: fixed;
+    top: -20%;
+    left: -10%;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bg-orb-purple {
+    position: fixed;
+    bottom: -20%;
+    right: -10%;
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
 }
