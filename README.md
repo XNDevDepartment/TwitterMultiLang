@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TwitterMultiLang Hub
 
-## Getting Started
+A local Next.js web app that lets you compose a tweet, translate it into 14 languages via Google Translate, and publish to per-language Twitter/X accounts — all from a single interface.
 
-First, run the development server:
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Google Translate API
+
+Edit `.env.local` and add your Google Translate API key:
+
+```
+GOOGLE_TRANSLATE_API_KEY=your_key_here
+```
+
+To get a key:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project and enable the **Cloud Translation API**
+3. Create an API key under **APIs & Services → Credentials**
+
+### 3. Start the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Configure Twitter credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Go to **http://localhost:3000/config**:
 
-## Learn More
+**Tab 1 — Twitter App API:**
+- Enter your app-level **API Key**, **API Secret**, and **Bearer Token**
+- Get these from [developer.twitter.com](https://developer.twitter.com) → your App → "Keys and tokens"
 
-To learn more about Next.js, take a look at the following resources:
+**Tab 2 — Account Mapping:**
+- Add one entry per language you want to publish to
+- Each entry needs: language, display handle, **Access Token**, and **Access Token Secret**
+- To get per-user tokens: Developer Portal → your App → "Keys and tokens" → "Authentication Tokens" → Generate Access Token & Secret
+- Your app must have **Read and Write** permissions
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Supported Languages
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Language | Code |
+|----------|------|
+| Portuguese | pt |
+| English | en |
+| French | fr |
+| German | de |
+| Italian | it |
+| Chinese Simplified | zh-CN |
+| Japanese | ja |
+| Polish | pl |
+| Norwegian | no |
+| Swedish | sv |
+| Austrian German | de-AT |
+| Spanish | es |
+| Brazilian Portuguese | pt-BR |
+| Arabic | ar |
 
-## Deploy on Vercel
+Note: `de-AT` uses the German translation and `pt-BR` uses the Portuguese translation, but each can map to a separate Twitter account.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Usage
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **New Tweet**: Type text in the composer, click **→ Translate**, review/edit translations, click **Publish All**
+2. **From URL**: Paste a tweet URL, load it, choose Quote or Reply mode, add your text, translate, publish
+3. **Images**: Attach up to 4 images — they'll be uploaded and attached to every published tweet
+4. Disable individual language toggles to skip specific languages when publishing
